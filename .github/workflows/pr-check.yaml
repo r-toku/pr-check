@@ -1,0 +1,36 @@
+name: pr check
+
+on:
+  workflow_dispatch: # 手動実行トリガー
+  push:
+    # 自身のワークフロー定義ファイルが更新されたときだけトリガー
+    paths:
+      - .github/workflows/pr-check.yaml
+      - .github/workflows/script/collect_pr_status.sh
+
+jobs:
+  pr-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - id: checkout-wiki
+        # Wiki リポジトリをチェックアウト。存在しない場合でも失敗させない
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+      - name: pr-check
+        # CLI で取得した PR 情報を Markdown にまとめる
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l .github/workflows/script/
+          bash .github/workflows/script/collect_pr_status.sh wiki
+      - name: update-wiki
+        # Wiki のチェックアウトが成功したときのみ更新を実行
+        if: steps.checkout-wiki.outcome == 'success'
+        run: bash .github/workflows/script/update_wiki.sh wiki
