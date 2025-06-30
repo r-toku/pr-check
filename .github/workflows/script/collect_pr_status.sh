@@ -9,7 +9,7 @@
 # gh コマンドを使って実行する想定です。
 # ==========================================
 
-set -euo pipefail
+set -euxo pipefail
 
 # 必要なコマンドの存在確認
 command -v gh >/dev/null 2>&1 || { echo "gh コマンドが見つかりません"; exit 1; }
