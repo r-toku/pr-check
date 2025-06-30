@@ -126,32 +126,39 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
     # projectNextItems は利用できなかったため projectItems を使用
     GRAPHQL_QUERY="$(cat <<'GQL'
-        query($PR_NODE_ID: ID!) {
-          node(id: $PR_NODE_ID) {
-            ... on PullRequest {
-              projectItems(first: 20) {
-                nodes {
-                  targetDate: fieldValueByName(name: "Target Date") {
-                    ... on ProjectV2ItemFieldDateValue { date }
-                    ... on ProjectV2ItemFieldTextValue { text }
-                  }
-                  priority: fieldValueByName(name: "Priority") {
-                    ... on ProjectV2ItemFieldSingleSelectValue { name }
-                    ... on ProjectV2ItemFieldTextValue { text }
-                  }
-                  sprint: fieldValueByName(name: "Sprint") {
-                    ... on ProjectV2ItemFieldSingleSelectValue { name }
-                    ... on ProjectV2ItemFieldTextValue { text }
-                  }
-                }
+    query($PR_NODE_ID: ID!) {
+      node(id: $PR_NODE_ID) {
+        ... on PullRequest {
+          projectItems(first: 20) {
+            nodes {
+              targetDate: fieldValueByName(name: "Target Date") {
+                ... on ProjectV2ItemFieldDateValue { date }
+                ... on ProjectV2ItemFieldTextValue { text }
+              }
+              priority: fieldValueByName(name: "Priority") {
+                ... on ProjectV2ItemFieldSingleSelectValue { name }
+                ... on ProjectV2ItemFieldTextValue { text }
+              }
+              sprint: fieldValueByName(name: "Sprint") {
+                ... on ProjectV2ItemFieldSingleSelectValue { name }
+                ... on ProjectV2ItemFieldTextValue { text }
               }
             }
           }
         }
+      }
+    }
 GQL
     )"
-    PROJECT_JSON=$(gh api graphql -H "GraphQL-Features: projects_next_graphql" \
-        -f query="$GRAPHQL_QUERY" -f PR_NODE_ID="$PR_NODE_ID" || echo "{}")
+
+    # GitHub CLI で Projects V2 API を呼び出し
+    PROJECT_JSON=$(
+      gh api graphql \
+        -f query="$GRAPHQL_QUERY" \
+        -f PR_NODE_ID="$PR_NODE_ID" \
+      || echo "{}"
+    )
+
     # プロジェクト情報の取得結果を標準出力へ表示
     echo "PROJECT_JSON for PR ${PR_NUMBER}=${PROJECT_JSON}"
 
