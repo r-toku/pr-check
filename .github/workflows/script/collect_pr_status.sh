@@ -124,24 +124,17 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     PR_NODE_ID=$(gh pr view "$PR_NUMBER" --json id -q .id)
     # PR の node ID を標準出力へ表示
     echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
-    # projectNextItems は利用できなかったため projectItems を使用
-    GRAPHQL_QUERY="$(cat <<'GQL'
+    # --- GraphQL クエリ定義（ProjectV2Item の project フィールドを取得） ---
+    read -r -d '' GRAPHQL_QUERY <<'GQL'
     query($PR_NODE_ID: ID!) {
       node(id: $PR_NODE_ID) {
         ... on PullRequest {
           projectItems(first: 20) {
             nodes {
-              targetDate: fieldValueByName(name: "Target Date") {
-                ... on ProjectV2ItemFieldDateValue { date }
-                ... on ProjectV2ItemFieldTextValue { text }
-              }
-              priority: fieldValueByName(name: "Priority") {
-                ... on ProjectV2ItemFieldSingleSelectValue { name }
-                ... on ProjectV2ItemFieldTextValue { text }
-              }
-              sprint: fieldValueByName(name: "Sprint") {
-                ... on ProjectV2ItemFieldSingleSelectValue { name }
-                ... on ProjectV2ItemFieldTextValue { text }
+              project {
+                id
+                title
+                number
               }
             }
           }
@@ -149,15 +142,17 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
       }
     }
 GQL
-    )"
 
-    # GitHub CLI で Projects V2 API を呼び出し
-    PROJECT_JSON=$(
-      gh api graphql \
-        -f query="$GRAPHQL_QUERY" \
-        -f PR_NODE_ID="$PR_NODE_ID" \
-      || echo "{}"
-    )
+    # --- 実行＆パース ---
+    PROJECT_JSON=$(gh api graphql \
+      -f query="$GRAPHQL_QUERY" \
+      -f PR_NODE_ID="$PR_NODE_ID")
+
+    # projectItems.nodes[].project.title を抜き出してユニークに表示
+    echo "$PROJECT_JSON" \
+      | jq -r '.data.node.projectItems.nodes[].project.title' \
+      | sort -u \
+      || echo "No projects found for PR ${PR_NUMBER}"
 
     # プロジェクト情報の取得結果を標準出力へ表示
     echo "PROJECT_JSON for PR ${PR_NUMBER}=${PROJECT_JSON}"
