@@ -12,7 +12,11 @@ jobs:
   pr-check:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      # リポジトリ内の Projects V2 を読む権限
+      repository-projects: read
+      # リポジトリのコードを読む（gh cli 実行時に不要なら read のままで可）
+      contents: read
+      # Pull Request 情報を読む
       pull-requests: read
     steps:
       - uses: actions/checkout@v4
