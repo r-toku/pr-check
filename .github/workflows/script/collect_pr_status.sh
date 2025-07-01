@@ -122,27 +122,27 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
 
     # --- Projects フィールドの取得 -------------------------------------------
     PR_NODE_ID=$(gh pr view "$PR_NUMBER" --json id -q .id)
+    gh auth login --scopes "read:project"
     # PR の node ID を標準出力へ表示
     echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
     PROJECT_JSON=$(gh api graphql \
       -f query='
-        query($prId: ID!) {
-          node(id: $prId) {
-            __typename
-            ... on PullRequest {
-              projectItems(first: 20) {
-                nodes {
-                  project {
-                    id
-                    title
-                    number
-                    url
-                  }
+      query GetPRProjectsV2($prId: ID!) {
+        node(id: $prId) {
+          __typename
+          ... on PullRequest {
+            projectItems(first: 20) {
+              nodes {
+                project {
+                  id
+                  title
+                  url
                 }
               }
             }
           }
         }
+      }
       ' \
       -f prId="$PR_NODE_ID")
 
