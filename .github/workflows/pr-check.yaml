@@ -12,8 +12,8 @@ jobs:
   pr-check:
     runs-on: ubuntu-latest
     permissions:
-      # リポジトリのコードを読む（gh cli 実行時に不要なら read のままで可）
-      contents: read
+      # Wiki を更新するため書き込み権限が必要
+      contents: write
       # Pull Request 情報を読む
       pull-requests: read
     steps:
