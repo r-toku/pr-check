@@ -125,7 +125,7 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     # PR の node ID を標準出力へ表示
     echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
     # --- GraphQL クエリ定義（ProjectV2Item の project フィールドを取得） ---
-    read -r -d '' GRAPHQL_QUERY <<'GQL'
+    GRAPHQL_QUERY="$(cat <<'GQL'
     query($PR_NODE_ID: ID!) {
       node(id: $PR_NODE_ID) {
         ... on PullRequest {
@@ -142,6 +142,7 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
       }
     }
 GQL
+    )"
 
     # --- 実行＆パース ---
     PROJECT_JSON=$(gh api graphql \
