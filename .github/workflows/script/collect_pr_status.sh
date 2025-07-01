@@ -103,12 +103,9 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     REVIEWS=$(echo "$DETAILS" | jq -c '.reviews')
     REQUESTED_REVIEWERS=$(echo "$DETAILS" | jq -r '.reviewRequests[].login' | tr '\n' ' ')
 
-    # レビュワー情報を整形
-    REVIEWER_INFO=""
-    for reviewer in $REQUESTED_REVIEWERS; do
-        [[ -n "$REVIEWER_INFO" ]] && REVIEWER_INFO+="<br>"
-        REVIEWER_INFO+=$(format_reviewer_status "$reviewer" "PENDING")
-    done
+    # レビュワーごとの状態を格納する連想配列
+    declare -A reviewer_states=()
+
     if [[ "$REVIEWS" != "[]" ]]; then
         # `author.login` と `user.login` のどちらかが存在するので併用する
         UNIQUE_REVIEWERS=$(
@@ -122,10 +119,21 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
                     jq -r ".[] | select((.author.login // .user.login)==\"$reviewer\") | .state // \"COMMENTED\"" \
                     | tail -n1
             )
-            [[ -n "$REVIEWER_INFO" ]] && REVIEWER_INFO+="<br>"
-            REVIEWER_INFO+=$(format_reviewer_status "$reviewer" "$LATEST_STATE")
+            reviewer_states["$reviewer"]="$LATEST_STATE"
         done
     fi
+
+    # レビューの再依頼があれば Pending 状態で上書き
+    for reviewer in $REQUESTED_REVIEWERS; do
+        reviewer_states["$reviewer"]="PENDING"
+    done
+
+    # レビュワー情報を整形
+    REVIEWER_INFO=""
+    for reviewer in $(printf '%s\n' "${!reviewer_states[@]}" | sort); do
+        [[ -n "$REVIEWER_INFO" ]] && REVIEWER_INFO+="<br>"
+        REVIEWER_INFO+=$(format_reviewer_status "$reviewer" "${reviewer_states[$reviewer]}")
+    done
     [[ -z "$REVIEWER_INFO" ]] && REVIEWER_INFO="未割当"
 
     PR_STATUS=$(determine_pr_status "$REVIEWS" "$PR_IS_DRAFT")
