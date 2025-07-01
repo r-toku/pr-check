@@ -124,7 +124,7 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     PR_NODE_ID=$(gh pr view "$PR_NUMBER" --json id -q .id)
     # PR の node ID を標準出力へ表示
     echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
-    gh api graphql \
+    PROJECT_JSON=$(gh api graphql \
       -f query='
         query($prId: ID!) {
           node(id: $prId) {
@@ -144,7 +144,7 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
           }
         }
       ' \
-      -f prId="$PR_NODE_ID"
+      -f prId="$PR_NODE_ID")
 
     # プロジェクト情報の取得結果を標準出力へ表示
     echo "PROJECT_JSON for PR ${PR_NUMBER}=${PROJECT_JSON}"
