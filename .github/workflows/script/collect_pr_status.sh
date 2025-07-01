@@ -75,8 +75,8 @@ OUTPUT_FILE="$OUTPUT_DIR/PR_Status.md"
     echo ""
     echo "Updated: $(date '+%Y-%m-%d %H:%M:%S')"
     echo ""
-    echo "| PR | Title | 状態 | Reviewers | Assignees | Priority | Target Date | Sprint |"
-    echo "| --- | ----- | ---- | --------- | --------- | -------- | ----------- | ------ |"
+    echo "| PR# | タイトル | 作成者 | レビュワー | 作成日 | 更新日 |"
+    echo "| --- | -------- | ------ | --------- | ------ | ------ |"
 } > "$OUTPUT_FILE"
 
 # -----------------------------------------------------------------------------
@@ -92,15 +92,16 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     PR_NUMBER=$(echo "$PR_LIST" | jq -r ".[$i].number")
     PR_TITLE=$(echo "$PR_LIST" | jq -r ".[$i].title" | tr '\n' ' ' | sed 's/|/\\|/g')
     PR_URL=$(echo "$PR_LIST" | jq -r ".[$i].url")
+    PR_AUTHOR=$(echo "$PR_LIST" | jq -r ".[$i].author.login")
+    PR_CREATED=$(echo "$PR_LIST" | jq -r ".[$i].createdAt" | cut -d'T' -f1)
+    PR_UPDATED=$(echo "$PR_LIST" | jq -r ".[$i].updatedAt" | cut -d'T' -f1)
     PR_IS_DRAFT=$(echo "$PR_LIST" | jq -r ".[$i].isDraft")
 
-    DETAILS=$(gh pr view "$PR_NUMBER" --json reviews,reviewRequests,assignees)
+    DETAILS=$(gh pr view "$PR_NUMBER" --json reviews,reviewRequests)
     # 個別 PR の詳細情報を標準出力へ表示
     echo "DETAILS for PR ${PR_NUMBER}=${DETAILS}"
     REVIEWS=$(echo "$DETAILS" | jq -c '.reviews')
     REQUESTED_REVIEWERS=$(echo "$DETAILS" | jq -r '.reviewRequests[].login' | tr '\n' ' ')
-    ASSIGNEES=$(echo "$DETAILS" | jq -r '.assignees[].login' | tr '\n' ' ')
-    [[ -z "$ASSIGNEES" ]] && ASSIGNEES="未割当"
 
     # レビュワー情報を整形
     REVIEWER_INFO=""
@@ -120,43 +121,8 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
 
     PR_STATUS=$(determine_pr_status "$REVIEWS" "$PR_IS_DRAFT")
 
-    # --- Projects フィールドの取得 -------------------------------------------
-    PR_NODE_ID=$(gh pr view "$PR_NUMBER" --json id -q .id)
-    # PR の node ID を標準出力へ表示
-    echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
-    PROJECT_JSON=$(gh api graphql \
-      -f query='
-      query GetPRProjectsV2($prId: ID!) {
-        node(id: $prId) {
-          __typename
-          ... on PullRequest {
-            projectItems(first: 20) {
-              nodes {
-                project {
-                  id
-                  title
-                  url
-                }
-              }
-            }
-          }
-        }
-      }
-      ' \
-      -f prId="$PR_NODE_ID")
-
-    # プロジェクト情報の取得結果を標準出力へ表示
-    echo "PROJECT_JSON for PR ${PR_NUMBER}=${PROJECT_JSON}"
-
-    TARGET_DATE=$(echo "$PROJECT_JSON" | jq -r '.data.node.projectItems.nodes[]? | .targetDate | .date // .text // empty' | head -n1)
-    PRIORITY=$(echo "$PROJECT_JSON" | jq -r '.data.node.projectItems.nodes[]? | .priority | .name // .text // empty' | head -n1)
-    SPRINT=$(echo "$PROJECT_JSON" | jq -r '.data.node.projectItems.nodes[]? | .sprint | .name // .text // empty' | head -n1)
-
-    TARGET_DATE=${TARGET_DATE:-"-"}
-    PRIORITY=${PRIORITY:-"-"}
-    SPRINT=${SPRINT:-"-"}
-
-    echo "| #$PR_NUMBER | [$PR_TITLE]($PR_URL) | $PR_STATUS | $REVIEWER_INFO | $ASSIGNEES | $PRIORITY | $TARGET_DATE | $SPRINT |" >> "$OUTPUT_FILE"
+    echo "| #$PR_NUMBER | [$PR_TITLE]($PR_URL)<br>($PR_STATUS) | $PR_AUTHOR | $REVIEWER_INFO | $PR_CREATED | $PR_UPDATED |" >> "$OUTPUT_FILE"
 done
 
 echo "PR 情報を $OUTPUT_FILE に出力しました"
+
