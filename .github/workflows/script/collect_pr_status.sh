@@ -110,9 +110,18 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
         REVIEWER_INFO+=$(format_reviewer_status "$reviewer" "PENDING")
     done
     if [[ "$REVIEWS" != "[]" ]]; then
-        UNIQUE_REVIEWERS=$(echo "$REVIEWS" | jq -r '.[].user.login' | sort -u)
+        # `author.login` と `user.login` のどちらかが存在するので併用する
+        UNIQUE_REVIEWERS=$(
+            echo "$REVIEWS" |
+                jq -r '.[] | (.author.login // .user.login)' \
+                | sort -u
+        )
         for reviewer in $UNIQUE_REVIEWERS; do
-            LATEST_STATE=$(echo "$REVIEWS" | jq -r ".[] | select(.user.login==\"$reviewer\") | .state" | tail -n1)
+            LATEST_STATE=$(
+                echo "$REVIEWS" |
+                    jq -r ".[] | select((.author.login // .user.login)==\"$reviewer\") | .state // \"COMMENTED\"" \
+                    | tail -n1
+            )
             [[ -n "$REVIEWER_INFO" ]] && REVIEWER_INFO+="<br>"
             REVIEWER_INFO+=$(format_reviewer_status "$reviewer" "$LATEST_STATE")
         done
