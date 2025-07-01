@@ -116,8 +116,11 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
         for reviewer in $UNIQUE_REVIEWERS; do
             LATEST_STATE=$(
                 echo "$REVIEWS" |
-                    jq -r ".[] | select((.author.login // .user.login)==\"$reviewer\") | .state // \"COMMENTED\"" \
-                    | tail -n1
+                    jq -r --arg r "$reviewer" '
+                        map(select((.author.login // .user.login) == $r))
+                        | sort_by(.submittedAt // .createdAt)
+                        | .[-1].state // "COMMENTED"
+                    '
             )
             reviewer_states["$reviewer"]="$LATEST_STATE"
         done
