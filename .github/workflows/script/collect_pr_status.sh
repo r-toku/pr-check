@@ -124,36 +124,27 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
     PR_NODE_ID=$(gh pr view "$PR_NUMBER" --json id -q .id)
     # PR の node ID を標準出力へ表示
     echo "PR_NODE_ID for PR ${PR_NUMBER}=${PR_NODE_ID}"
-    # --- GraphQL クエリ定義（ProjectV2Item の project フィールドを取得） ---
-    GRAPHQL_QUERY="$(cat <<'GQL'
+    PROJECT_JSON=$(gh api graphql \
+      -f query="$(cat <<'GQL'
     query($PR_NODE_ID: ID!) {
       node(id: $PR_NODE_ID) {
         ... on PullRequest {
-          projectItems(first: 20) {
+          projectCards(first: 10) {
             nodes {
-              project {
-                id
-                title
-                number
-              }
+              project { id name number }
             }
           }
         }
       }
     }
 GQL
-    )"
-
-    # --- 実行＆パース ---
-    PROJECT_JSON=$(gh api graphql \
-      -f query="$GRAPHQL_QUERY" \
+    )" \
       -f PR_NODE_ID="$PR_NODE_ID")
 
-    # projectItems.nodes[].project.title を抜き出してユニークに表示
     echo "$PROJECT_JSON" \
-      | jq -r '.data.node.projectItems.nodes[].project.title' \
+      | jq -r '.data.node.projectCards.nodes[].project.name' \
       | sort -u \
-      || echo "No projects found for PR ${PR_NUMBER}"
+      || echo "No classic projects for PR ${PR_NUMBER}"
 
     # プロジェクト情報の取得結果を標準出力へ表示
     echo "PROJECT_JSON for PR ${PR_NUMBER}=${PROJECT_JSON}"
